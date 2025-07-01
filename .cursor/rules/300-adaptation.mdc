@@ -30,7 +30,7 @@ This rule set is invoked when the agent encounters situations beyond standard ex
 
 ---
 ### PROTOCOL C: HIERARCHICAL FAILURE RESOLUTION
-> This protocol is a state machine triggered by the `attempts` counter, which is managed by the **100-engine** on each failed test run for a given task.
+> This protocol is a state machine triggered by the `attempts` counter, which is tracked in the task file's metadata and incremented by the **100-engine** on each failed test run for a given task.
 
 **Level 1: Simple Patch & Retry (`attempts` < 3)**
 - **ACTION:** Attempt to fix the bug directly based on the test failure output. If the stack trace includes a `file:line`, prioritize a targeted patch on that line (Execution-Guided Line Patch).
@@ -63,3 +63,17 @@ This rule set is invoked when the agent encounters situations beyond standard ex
     1.  **HALT:** Stop all implementation attempts for this task.
     2.  **BLOCK TASK:** Move the task file from `/project/tasks/in_progress/` to `/project/tasks/blocked/`.
     3.  **REPORT TO HUMAN:** Update `project_status.md` to show the task is blocked. Clearly state the problem, link to the relevant entries in `TROUBLESHOOTING_LOG.md`, and explicitly ask for human guidance. You may suggest creating a new research task or simplifying the requirement.
+
+---
+### PROTOCOL D: GRACEFUL DEGRADATION
+
+- **TRIGGER:** When external dependencies (CI/CD, package registries, APIs) are unavailable or failing.
+- **ACTION:**
+    1.  **DETECT:** Identify the specific external dependency that is failing.
+    2.  **FALLBACK:** Switch to local-only validation:
+        - Run local tests instead of waiting for CI
+        - Use cached packages when registry is down
+        - Skip non-critical integrations temporarily
+    3.  **LOG:** Document the degraded mode in `/project/TROUBLESHOOTING_LOG.md` with timestamp and expected resolution.
+    4.  **CONTINUE:** Proceed with task execution in degraded mode, marking the task with a `degraded_completion: true` flag.
+    5.  **RECOVERY:** When external services recover, create a new task to validate and clean up any degraded completions.

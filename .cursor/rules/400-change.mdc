@@ -17,24 +17,32 @@ This rule is an **interrupt-driven protocol**, triggered exclusively by a direct
 **STEP 1: ACKNOWLEDGE & SAFE-PAUSE**
 - **Action:**
     1.  Immediately acknowledge the user's request: "Change request received. Pausing current work to process the update."
-    2.  If a task is active in `/project/tasks/in_progress/`, execute `mv ./project/tasks/in_progress/T<ID>.md ./project/tasks/todo/T<ID>.md`. This safely returns the task to the `todo` queue for future re-evaluation.
+    2.  **VALIDATION:** Check if a task is active in `/project/tasks/in_progress/`. If multiple tasks exist (error state), consolidate them.
+    3.  If a task is active, execute `mv ./project/tasks/in_progress/T<ID>.md ./project/tasks/todo/T<ID>.md`. This safely returns the task to the `todo` queue for future re-evaluation.
+    4.  **LOG:** Record the interruption in `/project/TROUBLESHOOTING_LOG.md` with timestamp and reason.
 - **Goal:** Ensure the system is in a stable, non-executing state before applying changes.
 
 **STEP 2: DOCUMENT THE CHANGE (Source of Truth Update)**
 - **Action:**
-    1.  Your first implementation action **MUST** be to modify the source documents in `/docs/`.
-    2.  A functional change **MUST** be reflected in `PRD.md`.
-    3.  An architectural or technical change **MUST** be reflected in `TECH_SPEC.md`.
-    4.  The rationale for this significant change **MUST** be logged as a new entry in `/docs/DECISION_LOG.md` (ADR format).
+    1.  **BACKUP:** Create backup copies of current documentation: `cp /docs/*.md /docs/backup-$(date +%Y%m%d-%H%M%S)/`
+    2.  Your first implementation action **MUST** be to modify the source documents in `/docs/`.
+    3.  A functional change **MUST** be reflected in `PRD.md`.
+    4.  An architectural or technical change **MUST** be reflected in `TECH_SPEC.md`.
+    5.  The rationale for this significant change **MUST** be logged as a new entry in `/docs/DECISION_LOG.md` (ADR format).
+    6.  **VALIDATION:** Ensure all modified documents are syntactically valid and complete.
 - **Goal:** Guarantee that documentation always reflects the latest requirements *before* any planning or coding happens.
 
 **STEP 3: TRIGGER RE-PLANNING ENGINE**
 - **Action:**
     1.  Inform the user: "Source documents have been updated. I will now invoke the Core Engine to reconcile the project plan."
-    2.  Invoke the `100-engine.mdc`'s re-planning logic. The engine is responsible for:
-        - Performing an "intelligent diff" between the updated `/docs` and the current `/project/plan.json`.
-        - Generating new Epics and Tasks for new requirements.
-        - Moving any now-obsolete Tasks to the `/project/tasks/obsolete/` directory for audit purposes.
+    2.  **INVOKE:** Execute the `100-engine.mdc` PHASE 3: RE-PLANNING ENGINE protocol, which includes:
+        - Creating backup of current plan (`/project/plan.json.backup`)
+        - Performing intelligent diff between updated `/docs` and current plan
+        - Generating new Epics and Tasks for new requirements
+        - Moving obsolete Tasks to `/project/tasks/obsolete/` directory
+        - Updating dependency graphs
+        - Validating acyclic dependencies
+    3.  **ERROR HANDLING:** If re-planning fails, restore from backup and report specific error to user.
 - **Goal:** Delegate the complex task of re-planning to the specialized engine, keeping this rule lightweight.
 
 **STEP 4: SYNCHRONIZE EXTERNAL MEMORY (Optional)**
@@ -49,6 +57,30 @@ This rule is an **interrupt-driven protocol**, triggered exclusively by a direct
 
 **STEP 5: COMMUNICATE & RESUME**
 - **Action:**
-    1.  Report a concise summary of the plan changes to the user (e.g., "Re-plan complete. Plan diff: +3 new tasks, -1 obsolete task.").
-    2.  Announce that you are resuming work based on the updated plan by activating the next high-priority task from the `todo` queue.
+    1.  **GENERATE SUMMARY:** Create a detailed change summary including:
+        - Number of tasks added, modified, obsoleted
+        - Impact on current sprint/milestone
+        - Estimated timeline changes
+    2.  Report the summary to the user (e.g., "Re-plan complete. Plan diff: +3 new tasks, -1 obsolete task, ~2 days added to timeline.").
+    3.  **DEPENDENCY CHECK:** Verify that the next task to be activated has all dependencies met.
+    4.  Announce that you are resuming work based on the updated plan by activating the next high-priority task from the `todo` queue.
+    5.  **UPDATE STATUS:** Refresh `/project/project_status.md` to reflect the new plan state.
 - **Goal:** Provide a clear confirmation to the user that their change has been fully integrated and that normal operation is resuming.
+
+---
+### ERROR RECOVERY
+
+**ROLLBACK PROTOCOL:**
+- If any step in the change management fails critically:
+    1. Restore documentation from backup
+    2. Restore plan.json from backup
+    3. Return any moved tasks to their original locations
+    4. Log the rollback reason in `TROUBLESHOOTING_LOG.md`
+    5. Report to user with specific error details and request manual intervention
+
+**PARTIAL FAILURE HANDLING:**
+- If re-planning partially succeeds but has issues:
+    1. Complete the change process with warnings
+    2. Create a new high-priority task to resolve the planning issues
+    3. Continue with best-effort plan execution
+    4. Log all issues for future resolution

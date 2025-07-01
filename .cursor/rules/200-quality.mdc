@@ -16,8 +16,12 @@ These commandments are the absolute law governing all code generation. They are 
 ### COMMANDMENT I: THE CONTRACT IS LAW (Contract-First)
 
 1.  **Single Source of Truth**: The Zod schemas defined in `./schemas/` are the **immutable and sole source of truth** for all data entities and API payloads.
+    - **VALIDATION:** Check if `./schemas/` directory exists before enforcing this rule.
+    - **FALLBACK:** If schemas don't exist, create the directory and document the need for schema-first development in `DECISION_LOG.md`.
 2.  **No Manual Implementations**: You are **STRICTLY PROHIBITED** from manually writing TypeScript types, database models (e.g., Prisma schema), or API validation logic for any entity defined in the schemas.
 3.  **Mandatory Code Generation**: You **MUST** use the designated script (e.g., `npm run generate:types`) to transform Zod schemas into all necessary code artifacts. If a schema is modified, this script **MUST** be re-run before any other code is written.
+    - **VALIDATION:** Check if the generation script exists in `package.json` before running.
+    - **FALLBACK:** If script doesn't exist, document the manual type creation as technical debt.
 
 ### COMMANDMENT II: THOU SHALT WRITE TESTS FIRST (TDD)
 
@@ -27,26 +31,65 @@ These commandments are the absolute law governing all code generation. They are 
     3.  **REFACTOR**: Clean up the code without changing its functionality.
 2.  **Acceptance Criteria as Tests**: Every item in a task's `Acceptance Criteria` checklist **MUST** be covered by at least one verifiable test case.
 3.  **Visual & Design Compliance**: For any task that touches the UI (`ui_review: true`), E2E tests (using Playwright) **MUST** also validate compliance with the visual specifications defined in `/docs/DESIGN_SPEC.md`, including layout, component usage, and style guide adherence.
+    - **VALIDATION:** Check if Playwright is configured before enforcing E2E tests.
+    - **FALLBACK:** Use manual testing checklist if E2E framework is not available.
 
 ### COMMANDMENT III: THOU SHALT NOT HARDCODE
 
 1.  **Sanctity of `/config`**: All environment-specific variables (URLs, API Keys, Ports) and magic constants **MUST** reside exclusively in the `/config` directory and be loaded from there.
+    - **VALIDATION:** Check if `/config` directory exists, create if missing.
+    - **ALTERNATIVE:** If project uses different configuration pattern (e.g., `.env` files), adapt rule to project structure.
 2.  **Zero Tolerance**: A `grep` for common hardcoded patterns (e.g., `localhost`, `http://`, API key prefixes) is a mandatory part of the pre-commit check. Any findings constitute a failure.
+    - **PATTERNS TO CHECK:** 
+        - `localhost` (except in test files)
+        - `http://` and `https://` (except in configuration)
+        - Port numbers (except in configuration)
+        - API key patterns (`sk-`, `pk_`, `Bearer `)
 
 ### COMMANDMENT IV: CLEANLINESS IS NEXT TO GODLINESS (Linting & Formatting)
 
 1.  **Mandatory Checks**: Before any `git commit`, the commands `eslint --max-warnings=0` and `prettier --check .` **MUST** be executed and pass.
+    - **VALIDATION:** Check if ESLint and Prettier are configured in the project.
+    - **FALLBACK:** If tools are missing, install and configure them with sensible defaults.
+    - **ALTERNATIVE:** Use project's existing linting tools if different from ESLint/Prettier.
 2.  **Zero Warnings, Zero Errors**: A single warning or error from either tool constitutes a failure. You must fix all reported issues before proceeding.
+    - **EXCEPTION:** If fixing a linting error would break functionality, document the exception in `DECISION_LOG.md`.
 
 ### COMMANDMENT V: THOU SHALT HAVE NO CRITICAL VULNERABILITIES (Security)
 
 1.  **Mandatory Audit**: Before any `git commit` that modifies `package.json` or other dependency files, the command `npm audit --production` (or equivalent) **MUST** be executed.
+    - **VALIDATION:** Check if npm is available and project has package.json.
+    - **ALTERNATIVE:** Use `yarn audit` or `pnpm audit` based on project's package manager.
 2.  **Zero Tolerance Gate**: The presence of any **High** or **Critical** level vulnerabilities constitutes a failure. You must find a safe version, an alternative package, or document the risk in a `DECISION_LOG.md` entry if no alternative exists.
+    - **EXCEPTION:** If vulnerability is in dev dependencies only and doesn't affect production, document the acceptance in `DECISION_LOG.md`.
 
 ### COMMANDMENT VI: THOU SHALT MAINTAIN COVERAGE (Continuous Testing)
 
 1.  **The 70% Threshold**: The overall test line coverage, as measured by the CI pipeline, **MUST NOT** fall below 70%.
+    - **VALIDATION:** Check if coverage reporting is configured.
+    - **FALLBACK:** If no coverage tool exists, set up a basic coverage reporter.
 2.  **Automatic Test Regeneration Trigger**: A new `regen-tests` task **MUST** be automatically created and prioritized if:
     *   The coverage drops below the 70% threshold after a task is completed.
     *   Any file within `./schemas/` is modified (as this changes the data contract).
     *   An entire Epic is completed (as a final integration and regression check).
+
+---
+
+### QUALITY GATE VALIDATION PROTOCOL
+
+Before enforcing any commandment:
+1. **TOOL AVAILABILITY CHECK**: Verify that required tools (eslint, prettier, npm, etc.) are available.
+2. **CONFIGURATION CHECK**: Ensure necessary configuration files exist.
+3. **GRACEFUL DEGRADATION**: If tools are missing, either:
+   - Install and configure them automatically
+   - Use alternative tools available in the project
+   - Document the gap and proceed with manual validation
+4. **ERROR LOGGING**: Log all quality gate bypasses in `TROUBLESHOOTING_LOG.md` for future resolution.
+
+### COMMANDMENT ADAPTATION
+
+These commandments may be adapted based on project context:
+- **Different Tech Stacks**: Adapt tool names and commands for non-Node.js projects
+- **Existing Standards**: Respect existing project conventions while maintaining quality standards
+- **Legacy Projects**: Gradually introduce quality measures without breaking existing functionality
+- **Monorepos**: Apply rules at appropriate scope (package vs. workspace level)

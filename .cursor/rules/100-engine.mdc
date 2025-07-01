@@ -13,6 +13,7 @@ description: The Core Engine. It orchestrates the project's entire lifecycle, fr
 > This phase runs ONLY ONCE at the start of a project when `/project/plan.json` is absent.
 
 1.  **REQUIREMENT VALIDATION**
+    - **PREREQUISITE CHECK:** Verify that `/docs` directory exists. If not, create it and prompt user for initial documentation.
     - Read all documents in `/docs`.
     - **MANDATORY CHECK:** If `PRD.md` is missing core features, or `TECH_SPEC.md` is missing `techStack` details, you **MUST PAUSE** and ask the user for clarification. Do not proceed with incomplete specifications.
 
@@ -22,6 +23,7 @@ description: The Core Engine. It orchestrates the project's entire lifecycle, fr
     - If new or unfamiliar frameworks are specified, use the `context7` MCP to fetch their latest official documentation to inform the scaffolding process.
 
 3.  **SCAFFOLDING**
+    - **VALIDATION:** Check if required templates exist in `/project/_templates/`. If missing, create basic templates.
     - Execute the starter's official CLI command with non-interactive flags (e.g., `npx create-next-app@latest ... --ts --tailwind`).
     - **On Failure:** If scaffolding fails, automatically clean the directory, log the error in `TROUBLESHOOTING_LOG.md`, and prompt the user with the error details.
     - **On Success:** Clean any demo files/routes to create a blank canvas including starter readme file and change meta data to project version. Run `npx tailwindcss init -p` if necessary.
@@ -36,7 +38,7 @@ description: The Core Engine. It orchestrates the project's entire lifecycle, fr
         ```jsonc
         {
           "epics": [{"id": "E-1", "title": "...", "children": ["T-1"]}],
-          "tasks": [{"id": "T-1", "epic": "E-1", "title": "...", "description": "...", "criteria": ["..."], "dependencies": [], "ui_review": true}]
+          "tasks": [{"id": "T-1", "epic": "E-1", "title": "...", "description": "...", "criteria": ["..."], "dependencies": [], "ui_review": true, "attempts": 0}]
         }
         ```
         **Rules:**
@@ -45,15 +47,18 @@ description: The Core Engine. It orchestrates the project's entire lifecycle, fr
         - The dependency graph MUST be acyclic.
         - Split any task whose `criteria` list exceeds 5 items.
         - **If `ui_review: true`, the generated task file MUST contain a `design_review: pending` flag.**
+        - **All tasks MUST include `attempts: 0` field for failure tracking.**
         <END_LLM_PROMPT>
     - **OUTPUT:**
         a. Save the generated JSON to `/project/plan.json`.
-        b. For each task in the JSON, create a corresponding markdown file in `/project/tasks/todo/` using the `/project/_templates/task.md` template.
-        c. Commit the plan and tasks with `git commit -m "chore(plan): initial project decomposition"`.
+        b. **DIRECTORY SETUP:** Create required directories: `/project/tasks/{todo,in_progress,done,blocked,obsolete}/`.
+        c. For each task in the JSON, create a corresponding markdown file in `/project/tasks/todo/` using the `/project/_templates/task.md` template.
+        d. Commit the plan and tasks with `git commit -m "chore(plan): initial project decomposition"`.
     - **KANBAN**
-        a. Initialize Kanban: 
+        a. **VALIDATION:** Check if kanban directory exists and has package.json.
+        b. Initialize Kanban: 
             1. cd kanban && npm install
-            2. npm run dev
+            2. npm run dev (in background for development mode)
 
 5.  **INITIALIZATION COMPLETE**
     - Generate the `/project/project_status.md` dashboard.
@@ -68,27 +73,67 @@ For the active task `T<ID>` in `/project/tasks/in_progress/`:
 
 A. **LOAD CONTEXT & PREPARE**
    - Read the task file `T<ID>.md`.
+   - **VALIDATION:** Ensure task file contains required metadata (attempts, epic, type, status).
    - Load ONLY the files listed in its `Context Binding`.
    - If the task has `design_review: pending`, PAUSE and ask the user for a visual sign-off before writing code. Proceed only after user approval.
 
 B. **EXECUTE & VERIFY (TDD CYCLE)**
    - Strictly adhere to the `200-quality.mdc` rule for TDD, contract-first development, and linting.
+   - **ATTEMPTS TRACKING:** Before each test run, increment the `attempts` field in the task file metadata.
    - Run `npm run test` (or equivalent) repeatedly until all tests for the current task pass.
+   - **FAILURE HANDLING:** If tests fail, invoke `300-adaptation.mdc` failure resolution protocol based on current attempts count.
 
 C. **CI/CD GATE**
+   - **PREREQUISITE:** Check if CI/CD pipeline exists (`.github/workflows/` or similar).
    - After local tests pass, commit and push the code to trigger the CI/CD pipeline.
    - **Monitor the CI result.**
    - **If CI fails due to missing secrets** (e.g., `VERCEL_TOKEN`), PAUSE and prompt the user to add them via GitHub Secrets, referencing the `README.md` guide.
-   - **If CI fails for any other reason**, mark the task as failed, log the failure, and trigger the `300-adaptation.mdc` failure-reflection loop.
+   - **If CI pipeline doesn't exist**, proceed with local validation only and log this in `TROUBLESHOOTING_LOG.md`.
+   - **If CI fails for any other reason**, increment attempts counter, mark the task as failed, log the failure, and trigger the `300-adaptation.mdc` failure-reflection loop.
 
 D. **ARCHIVE & REPORT**
-   - **On Green CI:**
-     a. Archive the completed task: `mkdir -p ./project/tasks/done/$(date +%Y-Q%q) && mv ./project/tasks/in_progress/T<ID>.md ./project/tasks/done/$(date +%Y-Q%q)/`
-     b. Update the task file's internal status to `Done`.
-     c. Run `python scripts/report.py` if a reporting milestone is reached (epic complete or 5 tasks done).
+   - **On Green CI (or successful local validation):**
+     a. **RESET ATTEMPTS:** Set task's `attempts` field back to 0.
+     b. Archive the completed task: `mkdir -p ./project/tasks/done/$(date +%Y-Q%q) && mv ./project/tasks/in_progress/T<ID>.md ./project/tasks/done/$(date +%Y-Q%q)/`
+     c. Update the task file's internal status to `Done`.
+     d. Run `python scripts/report.py` if a reporting milestone is reached (epic complete or 5 tasks done).
 
 E. **SELECT NEXT TASK & REPEAT**
    - Update `/project/project_status.md`.
    - Identify the next available task from `/project/tasks/todo/` whose dependencies are met.
+   - **DEPENDENCY VALIDATION:** Check that all dependency tasks are in `/project/tasks/done/` before activating.
    - Activate it by moving it to `/project/tasks/in_progress/`.
    - Announce the next task to the user and repeat the loop.
+
+---
+## PHASE 3: RE-PLANNING ENGINE
+> This phase is triggered by the `400-change.mdc` rule or when major scope changes occur.
+
+**RE-PLANNING PROTOCOL:**
+1. **BACKUP CURRENT STATE:** Create a snapshot of current `/project/plan.json` as `/project/plan.json.backup`.
+2. **INTELLIGENT DIFF:** Compare updated `/docs` with current plan to identify:
+   - New requirements that need new tasks
+   - Changed requirements that invalidate existing tasks
+   - Dependencies that need updating
+3. **TASK RECONCILIATION:**
+   - Generate new tasks for new requirements
+   - Move obsolete tasks to `/project/tasks/obsolete/`
+   - Update dependency graphs for modified tasks
+   - Preserve completed work in `/project/tasks/done/`
+4. **VALIDATION:** Ensure the new plan maintains acyclic dependencies and proper task structure.
+5. **COMMIT CHANGES:** Save updated plan and commit with message "chore(plan): re-planning after scope change".
+
+---
+## ERROR RECOVERY PROTOCOLS
+
+**MISSING DEPENDENCIES:**
+- If required files/directories don't exist, create them with sensible defaults
+- Log all auto-created resources in `TROUBLESHOOTING_LOG.md`
+
+**CORRUPTED STATE:**
+- If task files are malformed, attempt to reconstruct from plan.json
+- If plan.json is corrupted, regenerate from /docs and ask user to review
+
+**EXTERNAL SERVICE FAILURES:**
+- Invoke `300-adaptation.mdc` Protocol D (Graceful Degradation)
+- Continue with local-only operations when possible
