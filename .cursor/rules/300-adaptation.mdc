@@ -1,11 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: true
----
----
-description: The Adaptation & Learning Engine. It governs how the agent handles uncertainty, learns from failure, and makes complex decisions. This is the agent's cognitive core.
----
 # 300 · Adaptation Engine: Research, Reflect, Resolve
 
 ## CONTEXT
@@ -45,6 +37,7 @@ This rule set is invoked when the agent encounters situations beyond standard ex
         **Root Cause Analysis:** My hypothesis for why the previous attempts failed.
         **Next Strategy:** A new, alternative approach to solve the problem.
         <</REFLECTION_NOTE>>
+        ```
     3.  **SELF-SCORE (R³):** Append a `self_score: [1-5]` to the reflection, rating your confidence in the new strategy. If the score is ≤ 3, you must regenerate the reflection with a different strategy.
     4.  **LOG:** Append the final, high-scoring reflection note to `/project/TROUBLESHOOTING_LOG.md`.
     5.  **RETRY:** Prepend the reflection note to your next implementation prompt and resume attempts.

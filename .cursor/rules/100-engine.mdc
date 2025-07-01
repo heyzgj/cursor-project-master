@@ -73,6 +73,7 @@ A. **LOAD CONTEXT & PREPARE**
 
 B. **EXECUTE & VERIFY (TDD CYCLE)**
    - Strictly adhere to the `200-quality.mdc` rule for TDD, contract-first development, and linting.
+   - **ATTEMPTS COUNTER:** Initialize `attempts = 0` for the task. Each time the test suite fails, increment `attempts` by **1** before applying any fixes. When the tests pass, **reset `attempts` to 0**.
    - Run `npm run test` (or equivalent) repeatedly until all tests for the current task pass.
 
 C. **CI/CD GATE**
@@ -83,7 +84,7 @@ C. **CI/CD GATE**
 
 D. **ARCHIVE & REPORT**
    - **On Green CI:**
-     a. Archive the completed task: `mkdir -p ./project/tasks/done/$(date +%Y-Q%q) && mv ./project/tasks/in_progress/T<ID>.md ./project/tasks/done/$(date +%Y-Q%q)/`
+     a. Archive the completed task: `mkdir -p ./project/tasks/done/$(date +%Y-%m-%d) && mv ./project/tasks/in_progress/T<ID>.md ./project/tasks/done/$(date +%Y-%m-%d)/`
      b. Update the task file's internal status to `Done`.
      c. Run `python scripts/report.py` if a reporting milestone is reached (epic complete or 5 tasks done).
 
