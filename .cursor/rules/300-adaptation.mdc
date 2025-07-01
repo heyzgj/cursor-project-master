@@ -1,6 +1,3 @@
----
-description: The Adaptation & Learning Engine. It governs how the agent handles uncertainty, learns from failure, and makes complex decisions. This is the agent's cognitive core.
----
 # 300 · Adaptation Engine: Research, Reflect, Resolve
 
 ## CONTEXT
@@ -58,4 +55,4 @@ This rule set is invoked when the agent encounters situations beyond standard ex
 - **ACTION:**
     1.  **HALT:** Stop all implementation attempts for this task.
     2.  **BLOCK TASK:** Move the task file from `/project/tasks/in_progress/` to `/project/tasks/blocked/`.
-    3.  **REPORT TO HUMAN:** Update `project_status.md` to show the task is blocked. Clearly state the problem, link to the relevant entries in `TROUBLESHOOTING_LOG.md`, and explicitly ask for human guidance. You may suggest creating a new research task or simplifying the requirement.
+    3.  **REPORT TO HUMAN:** Update `project_status.md` to show the task is blocked. Clearly state the problem, link to the relevant entries in `/project/TROUBLESHOOTING_LOG.md`, and explicitly ask for human guidance. You may suggest creating a new research task or simplifying the requirement.
